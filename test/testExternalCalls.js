@@ -7,7 +7,8 @@ const deployMultisig = (owners, confirmations, deployer) => {
     return MultiSigWallet.new(owners, confirmations, {from: deployer})
 }
 const deployToken = (deployer) => {
-	return TestToken.new({from: deployer})
+	const token = TestToken.new({from: deployer})
+    return token
 }
 const deployCalls = (deployer) => {
 	return TestCalls.new({from: deployer})
@@ -22,9 +23,43 @@ contract.only('MultiSigWallet', (accounts) => {
     const requiredConfirmations = 2
 
     beforeEach(async () => {
-        multisigInstance = await deployMultisig([accounts[0], accounts[1]], requiredConfirmations,accounts[2])
-        assert.ok(multisigInstance)
+
+        console.log('accounts are')
+        console.log(accounts)
+        
+
+        
+
+
+
+
+
+        console.log('DEPLOYING TOKEN, txcount before:')
+        console.log(await web3.eth.getBlockNumber())
+        console.log(await web3.eth.getTransactionCount(accounts[3]))
         tokenInstance = await deployToken(accounts[3])
+        console.log('TOKEN DEPLOYED, after:')
+        console.log(await web3.eth.getBlockNumber())
+        console.log(await web3.eth.getTransactionCount(accounts[3]))
+
+
+        console.log('DEPLOYING MUSIG, txcount before:')
+        console.log(await web3.eth.getBlockNumber())
+        console.log(await web3.eth.getTransactionCount(accounts[2]))
+        multisigInstance = await deployMultisig([accounts[0], accounts[1]], requiredConfirmations,accounts[2])
+        console.log('MUSIG DEPLOYED, after:')
+        console.log(await web3.eth.getBlockNumber())
+        console.log(await web3.eth.getTransactionCount(accounts[2]))
+
+
+
+        assert.ok(multisigInstance)
+
+
+
+        console.log('freshly deployed token code is:')
+        console.log(await web3.eth.getCode(tokenInstance.address))
+
         assert.ok(tokenInstance)
         callsInstance = await deployCalls(accounts[4])
         assert.ok(callsInstance)
@@ -38,12 +73,20 @@ contract.only('MultiSigWallet', (accounts) => {
     })
 
     it.only('transferWithPayloadSizeCheck', async () => {
+
+        console.log('multisigInstance code', await web3.eth.getCode(multisigInstance.address))
+
+
+
         console.log('token address', tokenInstance.address)
         console.log('multisigInstance address', multisigInstance.address)
         console.log('callsInstance address', callsInstance.address)
         // Issue tokens to the multisig address
         const issueResult = await tokenInstance.issueTokens(multisigInstance.address, 1000000, {from: accounts[0]})
+
+        console.log('tokens issued, about to do balance check')
         let balanceCheck = (await tokenInstance.balanceOf(multisigInstance.address)).toString()
+        console.log('and the balance check is:')
         console.log(balanceCheck)
         assert.ok(issueResult)
         // Encode transfer call for the multisig
@@ -64,7 +107,11 @@ contract.only('MultiSigWallet', (accounts) => {
             submission,
             'transactionId', null, 'Submission')
 
+        console.log('before we confirm, code is:')
+        console.log(await web3.eth.getCode(tokenInstance.address))
+        console.log('ABOUT TO CONFIRM')
         const confirmation = await multisigInstance.confirmTransaction(transactionId, {from: accounts[1]});
+        console.log('JUST CONFIRMED')
         confs = await multisigInstance.getConfirmations(0)
         console.log('confs', confs)
         console.log('expected:', accounts[0], accounts[1])
